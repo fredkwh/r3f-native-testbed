@@ -12,7 +12,8 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.fredkwh.r3f-native-testbed"
     },
     "android": {
       "adaptiveIcon": {
