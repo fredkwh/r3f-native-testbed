@@ -1,8 +1,9 @@
-import '@react-three/native'
 import { Canvas } from '@react-three/native'
-import { useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
+import { useRef, useState } from 'react'
 import { View } from 'react-native'
+import { StatusBanner } from '../../components/StatusBanner'
+import { TestErrorBoundary } from '../../components/ErrorBoundary'
 
 function Box() {
   const mesh = useRef<any>(null)
@@ -16,14 +17,17 @@ function Box() {
   )
 }
 
-export default function App() {
+export default function BoxScreen() {
   return (
     <View style={{ flex: 1 }}>
-      <Canvas>
-        <ambientLight intensity={Math.PI / 2} />
-        <pointLight position={[10, 10, 10]} />
-        <Box />
-      </Canvas>
+      <StatusBanner status="pass" message="Basic mesh, geometry, material, useFrame, lights" />
+      <TestErrorBoundary name="Box">
+        <Canvas>
+          <ambientLight intensity={Math.PI / 2} />
+          <pointLight position={[10, 10, 10]} />
+          <Box />
+        </Canvas>
+      </TestErrorBoundary>
     </View>
   )
 }

@@ -3,7 +3,8 @@
     "name": "r3f-native-testbed",
     "slug": "r3f-native-testbed",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "scheme": "r3f-testbed",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
@@ -26,6 +27,9 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-router"
+    ]
   }
 }
