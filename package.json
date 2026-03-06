@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "scripts": {
+    "copy-native": "rm -rf node_modules/@react-three/native && mkdir -p node_modules/@react-three/native && cp -r ../react-three-native/dist node_modules/@react-three/native/ && cp ../react-three-native/package.json node_modules/@react-three/native/ && mkdir -p node_modules/url && cp shims/url/index.js shims/url/package.json node_modules/url/",
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
@@ -11,7 +12,6 @@
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
     "@react-three/fiber": "^10.0.0-alpha.2",
-    "@react-three/native": "file:../react-three-native",
     "babel-preset-expo": "^55.0.10",
     "base64-js": "^1.5.1",
     "buffer": "^6.0.3",
@@ -21,11 +21,14 @@
     "expo-linking": "~55.0.7",
     "expo-router": "~55.0.4",
     "expo-status-bar": "~55.0.4",
+    "jpeg-js": "^0.4.4",
     "react": "19.2.0",
+    "react-dom": "19.2.0",
     "react-native": "0.83.2",
     "react-native-safe-area-context": "~5.6.2",
     "react-native-screens": "~4.23.0",
-    "three": "^0.183.2"
+    "three": "^0.183.2",
+    "upng-js": "^2.1.0"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
