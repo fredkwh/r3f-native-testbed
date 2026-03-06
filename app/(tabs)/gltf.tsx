@@ -1,9 +1,7 @@
-import { Canvas } from '@react-three/native'
-import { useFrame, useLoader } from '@react-three/fiber'
+import { Canvas, useNativeGLTF } from '@react-three/native'
+import { useFrame } from '@react-three/fiber'
 import { useRef, useState, Suspense } from 'react'
 import { View, Text, StyleSheet, Pressable } from 'react-native'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import * as THREE from 'three'
 import { StatusBanner } from '../../components/StatusBanner'
 import { TestErrorBoundary } from '../../components/ErrorBoundary'
 
@@ -20,7 +18,7 @@ const HELMET_URL =
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/DamagedHelmet/glTF-Binary/DamagedHelmet.glb'
 
 function RotatingModel({ url, onStatus }: { url: string; onStatus: (s: 'pass' | 'fail', msg: string) => void }) {
-  const gltf = useLoader(GLTFLoader, url)
+  const gltf = useNativeGLTF(url)
   const ref = useRef<any>(null)
 
   // Report texture info on first render
