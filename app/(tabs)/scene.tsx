@@ -376,6 +376,7 @@ function SceneContent({
   rotations: Record<string, number>
   setPositions: React.Dispatch<React.SetStateAction<Record<string, [number, number, number]>>>
 }) {
+  const controlsRef = useRef<any>(null)
   const dragRef = useRef<{
     itemId: string
     offsetX: number
@@ -384,7 +385,27 @@ function SceneContent({
     liveX: number
     liveZ: number
   } | null>(null)
-  const [dragging, setDragging] = useState(false)
+  const dragTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function commitDrag() {
+    const drag = dragRef.current
+    if (!drag) return
+    const y = positions[drag.itemId]?.[1] ?? 0
+    setPositions((prev) => ({ ...prev, [drag.itemId]: [drag.liveX, y, drag.liveZ] }))
+    const label = furnitureItems.find((f) => f.id === drag.itemId)?.label ?? drag.itemId
+    console.log(
+      `[Scene] Moved ${label} (${drag.itemId}) to [${drag.liveX.toFixed(2)}, ${y.toFixed(2)}, ${drag.liveZ.toFixed(2)}]`
+    )
+  }
+
+  function cleanupDrag() {
+    if (dragTimeoutRef.current) {
+      clearTimeout(dragTimeoutRef.current)
+      dragTimeoutRef.current = null
+    }
+    dragRef.current = null
+    if (controlsRef.current) controlsRef.current.enabled = true
+  }
 
   function handleDragStart(itemId: string, ray: THREE.Ray, object: THREE.Object3D) {
     const hit = ray.intersectPlane(XZ_PLANE, _hitPoint)
@@ -398,7 +419,15 @@ function SceneContent({
       liveX: pos[0],
       liveZ: pos[2],
     }
-    setDragging(true)
+    if (controlsRef.current) controlsRef.current.enabled = false
+
+    // Safety timeout — force end drag after 5s
+    if (dragTimeoutRef.current) clearTimeout(dragTimeoutRef.current)
+    dragTimeoutRef.current = setTimeout(() => {
+      console.warn('[Scene] Drag timeout (5s) — force ending drag')
+      commitDrag()
+      cleanupDrag()
+    }, 5000)
   }
 
   function handleDragMove(e: any) {
@@ -421,23 +450,16 @@ function SceneContent({
   }
 
   function handleDragEnd() {
-    const drag = dragRef.current
-    if (!drag) return
-    const y = positions[drag.itemId][1]
-    // Commit final position to React state
-    setPositions((prev) => ({ ...prev, [drag.itemId]: [drag.liveX, y, drag.liveZ] }))
-    const label = furnitureItems.find((f) => f.id === drag.itemId)?.label ?? drag.itemId
-    console.log(
-      `[Scene] Moved ${label} (${drag.itemId}) to [${drag.liveX.toFixed(2)}, ${y.toFixed(2)}, ${drag.liveZ.toFixed(2)}]`
-    )
-    dragRef.current = null
-    setDragging(false)
+    if (!dragRef.current) return
+    commitDrag()
+    cleanupDrag()
   }
 
   return (
     <>
       <PerspectiveCamera makeDefault position={[5, 4, 5]} fov={50} near={0.1} far={1000} />
       <OrbitControls
+        ref={controlsRef}
         makeDefault
         target={[0, 1, 0]}
         maxPolarAngle={Math.PI / 2}
@@ -445,7 +467,6 @@ function SceneContent({
         maxDistance={15}
         enableDamping
         dampingFactor={0.1}
-        enabled={!dragging}
       />
       <ambientLight intensity={0.6} />
       <directionalLight position={[3, 5, 2]} intensity={1.0} />
