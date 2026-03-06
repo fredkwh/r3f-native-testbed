@@ -1,5 +1,5 @@
-import { Canvas } from '@react-three/native'
-import { useRef, useState, useCallback } from 'react'
+import { Canvas, useNativeGLTF } from '@react-three/native'
+import { useRef, useState, useCallback, useMemo, useEffect, Suspense } from 'react'
 import { View, Pressable, Text, StyleSheet } from 'react-native'
 import * as THREE from 'three'
 import { StatusBanner } from '../../components/StatusBanner'
@@ -76,6 +76,16 @@ const FLOOR_PRESETS: Record<string, string> = {
 
 function resolveColor(materialId: string, presets: Record<string, string>): string {
   return presets[materialId] ?? materialId
+}
+
+// ─── GLB model URLs (modelId → URL) ─────────────────────────────────
+// Items with a URL here render as GLB models; others fall back to box placeholders.
+
+const MODEL_URLS: Record<string, string> = {
+  coffee_table:
+    'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/BoxTextured/glTF-Binary/BoxTextured.glb',
+  armchair:
+    'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Duck/glTF-Binary/Duck.glb',
 }
 
 // ─── Drag helpers ───────────────────────────────────────────────────
@@ -278,6 +288,69 @@ function FurniturePiece({
   )
 }
 
+// ─── GLB Furniture Component ────────────────────────────────────────
+
+function GLBFurniturePiece({
+  url,
+  item,
+  position,
+  rotation,
+  selected,
+  onSelect,
+  onDragStart,
+}: {
+  url: string
+  item: SceneV1['furniture'][0]
+  position: [number, number, number]
+  rotation: number
+  selected: boolean
+  onSelect: (id: string) => void
+  onDragStart: (itemId: string, ray: THREE.Ray) => void
+}) {
+  const gltf = useNativeGLTF(url)
+  const cloned = useMemo(() => {
+    const s = gltf.scene.clone(true)
+    // Override materials with flat color (PBR textures don't work on expo-gl)
+    s.traverse((child: any) => {
+      if (child.isMesh && child.material) {
+        child.material = new THREE.MeshStandardMaterial({ color: item.color })
+      }
+    })
+    return s
+  }, [gltf.scene, item.color])
+
+  useEffect(() => {
+    cloned.traverse((child: any) => {
+      if (child.isMesh && child.material) {
+        child.material.color.set(selected ? '#ffffff' : item.color)
+        child.material.emissive = new THREE.Color(selected ? '#4488ff' : '#000000')
+        child.material.emissiveIntensity = selected ? 0.4 : 0
+      }
+    })
+  }, [selected, cloned, item.color])
+
+  return (
+    <group
+      position={position}
+      rotation={[0, rotation, 0]}
+      scale={item.scale}
+      onClick={(e) => {
+        e.stopPropagation()
+        onSelect(item.id)
+        console.log(`[Scene] Selected: ${item.id} (${item.label}) [GLB]`)
+      }}
+      onPointerDown={(e) => {
+        if (selected) {
+          e.stopPropagation()
+          onDragStart(item.id, e.ray)
+        }
+      }}
+    >
+      <primitive object={cloned} />
+    </group>
+  )
+}
+
 // ─── Scene Root ─────────────────────────────────────────────────────
 
 function SceneContent({
@@ -362,17 +435,25 @@ function SceneContent({
         onPointerUp={handleDragEnd}
       >
         <Room scene={scene} />
-        {furnitureItems.map((item) => (
-          <FurniturePiece
-            key={item.id}
-            item={item}
-            position={positions[item.id]}
-            rotation={rotations[item.id]}
-            selected={selectedId === item.id}
-            onSelect={onSelect}
-            onDragStart={handleDragStart}
-          />
-        ))}
+        {furnitureItems.map((item) => {
+          const glbUrl = MODEL_URLS[item.modelId]
+          const commonProps = {
+            item,
+            position: positions[item.id],
+            rotation: rotations[item.id],
+            selected: selectedId === item.id,
+            onSelect,
+            onDragStart: handleDragStart,
+          }
+          if (glbUrl) {
+            return (
+              <Suspense key={item.id} fallback={<FurniturePiece {...commonProps} />}>
+                <GLBFurniturePiece url={glbUrl} {...commonProps} />
+              </Suspense>
+            )
+          }
+          return <FurniturePiece key={item.id} {...commonProps} />
+        })}
       </group>
 
       <FPSCounter onFPS={onFPS} label="Scene" />
