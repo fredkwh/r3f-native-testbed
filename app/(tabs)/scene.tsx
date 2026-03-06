@@ -259,10 +259,12 @@ function FurniturePiece({
   rotation: number
   selected: boolean
   onSelect: (id: string) => void
-  onDragStart: (itemId: string, ray: THREE.Ray) => void
+  onDragStart: (itemId: string, ray: THREE.Ray, object: THREE.Object3D) => void
 }) {
+  const meshRef = useRef<THREE.Mesh>(null)
   return (
     <mesh
+      ref={meshRef}
       position={position}
       rotation={[0, rotation, 0]}
       scale={item.scale}
@@ -272,9 +274,9 @@ function FurniturePiece({
         console.log(`[Scene] Selected: ${item.id} (${item.label})`)
       }}
       onPointerDown={(e) => {
-        if (selected) {
+        if (selected && meshRef.current) {
           e.stopPropagation()
-          onDragStart(item.id, e.ray)
+          onDragStart(item.id, e.ray, meshRef.current)
         }
       }}
     >
@@ -305,8 +307,9 @@ function GLBFurniturePiece({
   rotation: number
   selected: boolean
   onSelect: (id: string) => void
-  onDragStart: (itemId: string, ray: THREE.Ray) => void
+  onDragStart: (itemId: string, ray: THREE.Ray, object: THREE.Object3D) => void
 }) {
+  const groupRef = useRef<THREE.Group>(null)
   const gltf = useNativeGLTF(url)
   const cloned = useMemo(() => {
     const s = gltf.scene.clone(true)
@@ -331,6 +334,7 @@ function GLBFurniturePiece({
 
   return (
     <group
+      ref={groupRef}
       position={position}
       rotation={[0, rotation, 0]}
       scale={item.scale}
@@ -340,9 +344,9 @@ function GLBFurniturePiece({
         console.log(`[Scene] Selected: ${item.id} (${item.label}) [GLB]`)
       }}
       onPointerDown={(e) => {
-        if (selected) {
+        if (selected && groupRef.current) {
           e.stopPropagation()
-          onDragStart(item.id, e.ray)
+          onDragStart(item.id, e.ray, groupRef.current)
         }
       }}
     >
@@ -372,10 +376,17 @@ function SceneContent({
   rotations: Record<string, number>
   setPositions: React.Dispatch<React.SetStateAction<Record<string, [number, number, number]>>>
 }) {
-  const dragRef = useRef<{ itemId: string; offsetX: number; offsetZ: number } | null>(null)
+  const dragRef = useRef<{
+    itemId: string
+    offsetX: number
+    offsetZ: number
+    object: THREE.Object3D
+    liveX: number
+    liveZ: number
+  } | null>(null)
   const [dragging, setDragging] = useState(false)
 
-  function handleDragStart(itemId: string, ray: THREE.Ray) {
+  function handleDragStart(itemId: string, ray: THREE.Ray, object: THREE.Object3D) {
     const hit = ray.intersectPlane(XZ_PLANE, _hitPoint)
     if (!hit) return
     const pos = positions[itemId]
@@ -383,6 +394,9 @@ function SceneContent({
       itemId,
       offsetX: pos[0] - hit.x,
       offsetZ: pos[2] - hit.z,
+      object,
+      liveX: pos[0],
+      liveZ: pos[2],
     }
     setDragging(true)
   }
@@ -399,16 +413,22 @@ function SceneContent({
     const halfD = scene.room.depth / 2
     const x = Math.max(-(halfW - margin), Math.min(halfW - margin, hit.x + drag.offsetX))
     const z = Math.max(-(halfD - margin), Math.min(halfD - margin, hit.z + drag.offsetZ))
-    setPositions((prev) => ({ ...prev, [drag.itemId]: [x, prev[drag.itemId][1], z] }))
+    // Directly mutate Three.js object — no React re-render
+    drag.object.position.x = x
+    drag.object.position.z = z
+    drag.liveX = x
+    drag.liveZ = z
   }
 
   function handleDragEnd() {
     const drag = dragRef.current
     if (!drag) return
-    const pos = positions[drag.itemId]
+    const y = positions[drag.itemId][1]
+    // Commit final position to React state
+    setPositions((prev) => ({ ...prev, [drag.itemId]: [drag.liveX, y, drag.liveZ] }))
     const label = furnitureItems.find((f) => f.id === drag.itemId)?.label ?? drag.itemId
     console.log(
-      `[Scene] Moved ${label} (${drag.itemId}) to [${pos[0].toFixed(2)}, ${pos[1].toFixed(2)}, ${pos[2].toFixed(2)}]`
+      `[Scene] Moved ${label} (${drag.itemId}) to [${drag.liveX.toFixed(2)}, ${y.toFixed(2)}, ${drag.liveZ.toFixed(2)}]`
     )
     dragRef.current = null
     setDragging(false)
@@ -422,7 +442,9 @@ function SceneContent({
         target={[0, 1, 0]}
         maxPolarAngle={Math.PI / 2}
         minDistance={2}
-        maxDistance={20}
+        maxDistance={15}
+        enableDamping
+        dampingFactor={0.1}
         enabled={!dragging}
       />
       <ambientLight intensity={0.6} />
