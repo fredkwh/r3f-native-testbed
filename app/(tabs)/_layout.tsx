@@ -8,6 +8,7 @@ const tabs: { name: string; title: string; icon: IconName }[] = [
   { name: 'touch', title: 'Touch', icon: 'hand-left-outline' },
   { name: 'texture', title: 'Texture', icon: 'image-outline' },
   { name: 'gltf', title: 'GLTF', icon: 'download-outline' },
+  { name: 'demand', title: 'Demand', icon: 'pause-outline' },
   { name: 'resize', title: 'Resize', icon: 'resize-outline' },
   { name: 'lifecycle', title: 'Mount', icon: 'refresh-outline' },
   { name: 'multi', title: 'Multi', icon: 'copy-outline' },
