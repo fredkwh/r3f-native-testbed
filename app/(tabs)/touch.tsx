@@ -1,36 +1,57 @@
 import { Canvas } from '@react-three/native'
-import { useFrame } from '@react-three/fiber'
+import { useFrame, ThreeEvent } from '@react-three/fiber'
 import { useRef, useState, useCallback } from 'react'
 import { View, Text, ScrollView, StyleSheet } from 'react-native'
 import { StatusBanner } from '../../components/StatusBanner'
 import { TestErrorBoundary } from '../../components/ErrorBoundary'
 
-function TouchBox({ onEvent }: { onEvent: (name: string) => void }) {
+function TouchMesh({
+  position,
+  color,
+  name,
+  onEvent,
+}: {
+  position: [number, number, number]
+  color: string
+  name: string
+  onEvent: (name: string, meshName: string) => void
+}) {
   const mesh = useRef<any>(null)
-  const [color, setColor] = useState('dodgerblue')
-  useFrame((_, delta) => (mesh.current.rotation.y += delta * 0.5))
+  const [currentColor, setCurrentColor] = useState(color)
+  useFrame((_, delta) => (mesh.current.rotation.y += delta * 0.3))
 
   return (
     <mesh
       ref={mesh}
-      onClick={() => {
-        onEvent('onClick')
-        setColor('lime')
+      position={position}
+      onClick={(e: ThreeEvent<MouseEvent>) => {
+        e.stopPropagation()
+        onEvent('onClick', name)
+        setCurrentColor('lime')
+        setTimeout(() => setCurrentColor(color), 300)
       }}
-      onPointerDown={() => {
-        onEvent('onPointerDown')
-        setColor('red')
+      onPointerDown={(e: ThreeEvent<PointerEvent>) => {
+        e.stopPropagation()
+        onEvent('onPointerDown', name)
+        setCurrentColor('red')
       }}
-      onPointerUp={() => {
-        onEvent('onPointerUp')
-        setColor('green')
+      onPointerUp={(e: ThreeEvent<PointerEvent>) => {
+        e.stopPropagation()
+        onEvent('onPointerUp', name)
+        setCurrentColor('green')
+        setTimeout(() => setCurrentColor(color), 300)
       }}
-      onPointerOver={() => onEvent('onPointerOver')}
-      onPointerOut={() => onEvent('onPointerOut')}
-      onPointerMove={() => onEvent('onPointerMove')}
+      onPointerOver={(e: ThreeEvent<PointerEvent>) => {
+        e.stopPropagation()
+        onEvent('onPointerOver', name)
+      }}
+      onPointerOut={(e: ThreeEvent<PointerEvent>) => {
+        e.stopPropagation()
+        onEvent('onPointerOut', name)
+      }}
     >
-      <boxGeometry args={[1.5, 1.5, 1.5]} />
-      <meshStandardMaterial color={color} />
+      <boxGeometry args={[1, 1, 1]} />
+      <meshStandardMaterial color={currentColor} />
     </mesh>
   )
 }
@@ -38,36 +59,48 @@ function TouchBox({ onEvent }: { onEvent: (name: string) => void }) {
 export default function TouchScreen() {
   const [events, setEvents] = useState<string[]>([])
   const eventCount = useRef(0)
+  const [clickedMeshes, setClickedMeshes] = useState<Set<string>>(new Set())
 
-  const handleEvent = useCallback((name: string) => {
+  const handleEvent = useCallback((eventName: string, meshName: string) => {
     eventCount.current++
-    setEvents((prev) => [`#${eventCount.current} ${name}`, ...prev.slice(0, 19)])
+    setEvents((prev) => [`#${eventCount.current} ${meshName}.${eventName}`, ...prev.slice(0, 29)])
+    if (eventName === 'onClick') {
+      setClickedMeshes((prev) => new Set(prev).add(meshName))
+    }
   }, [])
 
-  const hasEvents = events.length > 0
+  const allThreeClicked = clickedMeshes.size === 3
 
   return (
     <View style={{ flex: 1 }}>
       <StatusBanner
-        status={hasEvents ? 'pass' : 'info'}
-        message={hasEvents ? `${events.length} events captured — tap the cube` : 'Tap the cube to test touch events'}
+        status={allThreeClicked ? 'pass' : events.length > 0 ? 'info' : 'info'}
+        message={
+          allThreeClicked
+            ? 'Raycasting works — all 3 meshes received targeted clicks'
+            : events.length > 0
+              ? `${clickedMeshes.size}/3 meshes clicked — tap each cube`
+              : 'Tap each of the 3 cubes to test raycasting'
+        }
       />
       <TestErrorBoundary name="Touch Events">
         <View style={{ flex: 1 }}>
           <Canvas style={{ flex: 1 }}>
             <ambientLight intensity={Math.PI / 2} />
             <pointLight position={[10, 10, 10]} />
-            <TouchBox onEvent={handleEvent} />
+            <TouchMesh position={[-2, 0, 0]} color="dodgerblue" name="Left" onEvent={handleEvent} />
+            <TouchMesh position={[0, 0, 0]} color="orange" name="Center" onEvent={handleEvent} />
+            <TouchMesh position={[2, 0, 0]} color="mediumpurple" name="Right" onEvent={handleEvent} />
           </Canvas>
         </View>
       </TestErrorBoundary>
       <View style={styles.log}>
-        <Text style={styles.logTitle}>Event Log:</Text>
+        <Text style={styles.logTitle}>Event Log (mesh.event):</Text>
         <ScrollView style={{ maxHeight: 120 }}>
           {events.map((e, i) => (
             <Text key={i} style={styles.logEntry}>{e}</Text>
           ))}
-          {!hasEvents && <Text style={styles.logEntry}>No events yet</Text>}
+          {events.length === 0 && <Text style={styles.logEntry}>No events yet</Text>}
         </ScrollView>
       </View>
     </View>
