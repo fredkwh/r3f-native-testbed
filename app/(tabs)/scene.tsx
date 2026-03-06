@@ -467,6 +467,7 @@ function SceneContent({
         maxDistance={15}
         enableDamping
         dampingFactor={0.1}
+        touches={{ ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN }}
       />
       <ambientLight intensity={0.6} />
       <directionalLight position={[3, 5, 2]} intensity={1.0} />
@@ -475,7 +476,14 @@ function SceneContent({
       <group
         onClick={() => onSelect(null)}
         onPointerMove={handleDragMove}
-        onPointerUp={handleDragEnd}
+        onPointerUp={(e) => {
+          handleDragEnd()
+          // Force-reset OrbitControls state to recover from stuck gestures
+          // (e.g. pinch zoom where one finger lifts before the other)
+          if (controlsRef.current) {
+            controlsRef.current.dispatchEvent({ type: 'end' })
+          }
+        }}
       >
         <Room scene={scene} />
         {furnitureItems.map((item) => {
