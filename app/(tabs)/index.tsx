@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { View, Pressable, Text, StyleSheet } from 'react-native'
 import { StatusBanner } from '../../components/StatusBanner'
 import { TestErrorBoundary } from '../../components/ErrorBoundary'
+import { FPSCounter } from '../../components/FPSCounter'
 
 function Box() {
   const mesh = useRef<any>(null)
@@ -27,12 +28,13 @@ const cameraModes: { key: CameraMode; label: string }[] = [
 
 export default function BoxScreen() {
   const [mode, setMode] = useState<CameraMode>('default')
+  const [fps, setFPS] = useState(0)
 
   return (
     <View style={{ flex: 1 }}>
       <StatusBanner
         status="pass"
-        message={`Camera: ${cameraModes.find((m) => m.key === mode)!.label}`}
+        message={`Camera: ${cameraModes.find((m) => m.key === mode)!.label} | FPS: ${fps}`}
       />
       <View style={styles.buttons}>
         {cameraModes.map((m) => (
@@ -58,6 +60,7 @@ export default function BoxScreen() {
                 : undefined
           }
         >
+          <FPSCounter onFPS={setFPS} label="Box (1 mesh)" />
           <ambientLight intensity={Math.PI / 2} />
           <pointLight position={[10, 10, 10]} />
           <Box />
