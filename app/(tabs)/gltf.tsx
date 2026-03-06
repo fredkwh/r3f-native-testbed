@@ -5,15 +5,11 @@ import { View, Text, StyleSheet, Pressable } from 'react-native'
 import { StatusBanner } from '../../components/StatusBanner'
 import { TestErrorBoundary } from '../../components/ErrorBoundary'
 
-// Plain Box.glb — geometry only, no textures
-const BOX_URL =
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Box/glTF-Binary/Box.glb'
-
-// BoxTextured.glb — geometry + embedded UV texture
+// BoxTextured.glb — geometry + embedded UV texture (working)
 const TEXTURED_URL =
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/BoxTextured/glTF-Binary/BoxTextured.glb'
 
-// DamagedHelmet.glb — complex model with multiple embedded textures
+// DamagedHelmet.glb — complex PBR model (known limitation: PBR textures render black on expo-gl)
 const HELMET_URL =
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/DamagedHelmet/glTF-Binary/DamagedHelmet.glb'
 
@@ -21,7 +17,6 @@ function RotatingModel({ url, onStatus }: { url: string; onStatus: (s: 'pass' | 
   const gltf = useNativeGLTF(url)
   const ref = useRef<any>(null)
 
-  // Report texture info on first render
   useState(() => {
     const textures: string[] = []
     gltf.scene.traverse((child: any) => {
@@ -60,11 +55,10 @@ function FallbackBox() {
   )
 }
 
-type ModelKey = 'box' | 'textured' | 'helmet'
-const models: { key: ModelKey; label: string; url: string }[] = [
-  { key: 'box', label: 'Box (no tex)', url: BOX_URL },
+type ModelKey = 'textured' | 'helmet'
+const models: { key: ModelKey; label: string; url: string; note?: string }[] = [
   { key: 'textured', label: 'BoxTextured', url: TEXTURED_URL },
-  { key: 'helmet', label: 'DamagedHelmet', url: HELMET_URL },
+  { key: 'helmet', label: 'Helmet (limited)', url: HELMET_URL, note: 'PBR textures black — expo-gl limitation' },
 ]
 
 export default function GLTFScreen() {
@@ -86,6 +80,9 @@ export default function GLTFScreen() {
               : `Loading ${activeModel.label}...`
         }
       />
+      {activeModel.note && (
+        <Text style={styles.note}>{activeModel.note}</Text>
+      )}
       <View style={styles.buttons}>
         {models.map((m) => (
           <Pressable
@@ -146,5 +143,13 @@ const styles = StyleSheet.create({
   btnTextActive: {
     color: '#fff',
     fontWeight: '600',
+  },
+  note: {
+    textAlign: 'center',
+    fontSize: 11,
+    color: '#e65100',
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    backgroundColor: '#fff3e0',
   },
 })
