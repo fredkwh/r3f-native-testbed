@@ -14,6 +14,7 @@ const tabs: { name: string; title: string; icon: IconName }[] = [
   { name: 'multi', title: 'Multi', icon: 'copy-outline' },
   { name: 'drei', title: 'Drei', icon: 'extension-puzzle-outline' },
   { name: 'perf', title: 'Perf', icon: 'speedometer-outline' },
+  { name: 'scene', title: 'Scene', icon: 'home-outline' },
 ]
 
 export default function TabLayout() {
