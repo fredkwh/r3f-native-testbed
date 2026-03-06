@@ -1,6 +1,6 @@
 import { Canvas } from '@react-three/native'
 import { useFrame, useThree } from '@react-three/fiber'
-import { useRef, useState, useCallback } from 'react'
+import { useRef, useState, useCallback, useEffect } from 'react'
 import { View, Text, Pressable, StyleSheet } from 'react-native'
 import { StatusBanner } from '../../components/StatusBanner'
 import { TestErrorBoundary } from '../../components/ErrorBoundary'
@@ -8,13 +8,23 @@ import { TestErrorBoundary } from '../../components/ErrorBoundary'
 function DemandBox() {
   const mesh = useRef<any>(null)
   const frameCount = useRef(0)
+  const { invalidate, frameloop } = useThree((s) => ({ invalidate: s.invalidate, frameloop: s.frameloop }))
 
-  useFrame(() => {
+  useFrame((state) => {
     frameCount.current++
+    if (frameCount.current <= 5 || frameCount.current % 60 === 0) {
+      console.log(`[@r3n demand] useFrame #${frameCount.current} frameloop=${state.frameloop} frames=${(state as any).internal?.frames}`)
+    }
     if (mesh.current) {
       mesh.current.rotation.y += 0.1
     }
   })
+
+  // Force initial render so the scene is visible
+  useEffect(() => {
+    console.log(`[@r3n demand] DemandBox mounted, frameloop=${frameloop}, calling invalidate()`)
+    invalidate()
+  }, [])
 
   return (
     <mesh ref={mesh}>
@@ -69,6 +79,7 @@ export default function DemandScreen() {
       <Pressable
         style={styles.button}
         onPress={() => {
+          console.log(`[@r3n demand] button pressed, invalidateRef=${!!invalidateRef.current}`)
           invalidateRef.current?.()
           handleInvalidate()
         }}
@@ -76,7 +87,14 @@ export default function DemandScreen() {
         <Text style={styles.buttonText}>Invalidate (render 1 frame)</Text>
       </Pressable>
       <TestErrorBoundary name="Demand Frameloop">
-        <Canvas style={{ flex: 1 }} frameloop="demand">
+        <Canvas
+          style={{ flex: 1 }}
+          frameloop="demand"
+          onCreated={(state) => {
+            console.log(`[@r3n demand] onCreated: frameloop=${state.frameloop} size=${state.size.width}x${state.size.height}`)
+            state.invalidate()
+          }}
+        >
           <ambientLight intensity={Math.PI / 2} />
           <pointLight position={[10, 10, 10]} />
           <DemandBox />
