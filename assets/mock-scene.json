@@ -1,0 +1,101 @@
+{
+  "id": "scene-001",
+  "name": "Living Room",
+  "room": {
+    "width": 6,
+    "depth": 5,
+    "height": 2.8,
+    "floor": { "materialId": "floor_oak" },
+    "walls": {
+      "north": { "materialId": "wall_beige" },
+      "south": { "materialId": "wall_default" },
+      "east": { "materialId": "wall_gray" },
+      "west": { "materialId": "wall_beige" }
+    }
+  },
+  "openings": [
+    {
+      "id": "window-1",
+      "type": "window",
+      "wall": "north",
+      "offsetX": -0.8,
+      "width": 1.4,
+      "height": 1.2,
+      "sillHeight": 0.9
+    },
+    {
+      "id": "door-1",
+      "type": "door",
+      "wall": "south",
+      "offsetX": 1.0,
+      "width": 0.9,
+      "height": 2.1,
+      "sillHeight": 0
+    },
+    {
+      "id": "window-2",
+      "type": "window",
+      "wall": "east",
+      "offsetX": 0,
+      "width": 1.6,
+      "height": 1.0,
+      "sillHeight": 1.0
+    }
+  ],
+  "furniture": [
+    {
+      "id": "sofa-1",
+      "modelId": "sofa_3seat",
+      "label": "Sofa",
+      "position": [0, 0.4, -1.8],
+      "rotation": 0,
+      "scale": [2.0, 0.8, 0.9],
+      "color": "#5c6b7a"
+    },
+    {
+      "id": "table-1",
+      "modelId": "coffee_table",
+      "label": "Coffee Table",
+      "position": [0, 0.25, -0.5],
+      "rotation": 0,
+      "scale": [1.2, 0.5, 0.6],
+      "color": "#8b6914"
+    },
+    {
+      "id": "chair-1",
+      "modelId": "armchair",
+      "label": "Armchair",
+      "position": [2.0, 0.35, -0.5],
+      "rotation": -0.7854,
+      "scale": [0.8, 0.7, 0.8],
+      "color": "#a0522d"
+    },
+    {
+      "id": "shelf-1",
+      "modelId": "bookshelf",
+      "label": "Bookshelf",
+      "position": [-2.6, 0.9, -2.2],
+      "rotation": 0,
+      "scale": [0.8, 1.8, 0.35],
+      "color": "#6b4226"
+    },
+    {
+      "id": "lamp-1",
+      "modelId": "floor_lamp",
+      "label": "Floor Lamp",
+      "position": [2.3, 0.7, -1.8],
+      "rotation": 0,
+      "scale": [0.3, 1.4, 0.3],
+      "color": "#333333"
+    },
+    {
+      "id": "rug-1",
+      "modelId": "area_rug",
+      "label": "Rug",
+      "position": [0, 0.01, -0.8],
+      "rotation": 0,
+      "scale": [2.5, 0.02, 1.8],
+      "color": "#8b4557"
+    }
+  ]
+}
