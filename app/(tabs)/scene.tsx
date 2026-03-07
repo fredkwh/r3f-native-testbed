@@ -610,6 +610,18 @@ export default function NativeSceneScreen() {
     console.log('[Scene] Redo')
   }, [history.redo])
 
+  const handleSave = useCallback(() => {
+    const output: SceneV1 = {
+      ...scene,
+      furniture: furnitureItems.map((item) => ({
+        ...item,
+        position: positions[item.id] ?? item.position,
+        rotation: rotations[item.id] ?? item.rotation,
+      })),
+    }
+    console.log(`[Scene] Save: ${JSON.stringify(output)}`)
+  }, [scene, furnitureItems, positions, rotations])
+
   return (
     <View style={{ flex: 1 }}>
       <StatusBanner
@@ -631,6 +643,9 @@ export default function NativeSceneScreen() {
           disabled={!history.canRedo}
         >
           <Text style={[styles.toolBtnText, !history.canRedo && styles.toolBtnTextDisabled]}>Redo</Text>
+        </Pressable>
+        <Pressable style={[styles.toolBtn, styles.saveBtn]} onPress={handleSave}>
+          <Text style={styles.toolBtnText}>Save</Text>
         </Pressable>
         {selectedId && (
           <>
@@ -689,6 +704,9 @@ const styles = StyleSheet.create({
   },
   toolBtnTextDisabled: {
     color: '#ccc',
+  },
+  saveBtn: {
+    backgroundColor: '#2e7d32',
   },
   deleteBtn: {
     backgroundColor: '#c62828',
