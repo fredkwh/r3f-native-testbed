@@ -610,6 +610,31 @@ export default function NativeSceneScreen() {
     console.log('[Scene] Redo')
   }, [history.redo])
 
+  const addCountRef = useRef(0)
+
+  const handleAdd = useCallback(() => {
+    addCountRef.current += 1
+    const id = `new-item-${Date.now()}`
+    const label = `New Item ${addCountRef.current}`
+    const colors = ['#e91e63', '#9c27b0', '#3f51b5', '#009688', '#ff9800', '#795548']
+    const color = colors[addCountRef.current % colors.length]
+    const newItem: SceneV1['furniture'][0] = {
+      id,
+      modelId: 'placeholder',
+      label,
+      position: [0, 0.5, 0],
+      rotation: 0,
+      scale: [0.6, 1.0, 0.6],
+      color,
+    }
+    const newItems = [...furnitureItems, newItem]
+    const newPositions = { ...positions, [id]: [0, 0.5, 0] as [number, number, number] }
+    const newRotations = { ...rotations, [id]: 0 }
+    history.push({ furnitureItems: newItems, positions: newPositions, rotations: newRotations })
+    setSelectedId(id)
+    console.log(`[Scene] Added: ${id} (${label})`)
+  }, [furnitureItems, positions, rotations, history.push])
+
   const handleSave = useCallback(() => {
     const output: SceneV1 = {
       ...scene,
@@ -646,6 +671,9 @@ export default function NativeSceneScreen() {
         </Pressable>
         <Pressable style={[styles.toolBtn, styles.saveBtn]} onPress={handleSave}>
           <Text style={styles.toolBtnText}>Save</Text>
+        </Pressable>
+        <Pressable style={[styles.toolBtn, styles.addBtn]} onPress={handleAdd}>
+          <Text style={styles.toolBtnText}>Add</Text>
         </Pressable>
         {selectedId && (
           <>
@@ -707,6 +735,9 @@ const styles = StyleSheet.create({
   },
   saveBtn: {
     backgroundColor: '#2e7d32',
+  },
+  addBtn: {
+    backgroundColor: '#6a1b9a',
   },
   deleteBtn: {
     backgroundColor: '#c62828',
