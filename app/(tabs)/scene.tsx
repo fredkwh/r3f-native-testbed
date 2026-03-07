@@ -1,7 +1,9 @@
 import { Canvas, useNativeGLTF } from '@react-three/native'
 import { useRef, useState, useCallback, useMemo, useEffect, Suspense } from 'react'
-import { View, Pressable, Text, StyleSheet } from 'react-native'
+import { View, Pressable, Text, StyleSheet, Image } from 'react-native'
 import * as THREE from 'three'
+import { useThree, useFrame } from '@react-three/fiber'
+import { GLView } from 'expo-gl'
 import { StatusBanner } from '../../components/StatusBanner'
 import { TestErrorBoundary } from '../../components/ErrorBoundary'
 import { FPSCounter } from '../../components/FPSCounter'
@@ -504,6 +506,39 @@ function SceneContent({
   )
 }
 
+// ─── Screenshot Capture ─────────────────────────────────────────────
+
+function ScreenshotCapture({
+  triggerRef,
+  onCapture,
+}: {
+  triggerRef: React.MutableRefObject<boolean>
+  onCapture: (uri: string) => void
+}) {
+  const gl = useThree((s) => s.gl)
+
+  useFrame(() => {
+    if (!triggerRef.current) return
+    triggerRef.current = false
+    const glContext = gl.getContext() as any
+    const ctxId = glContext?.contextId
+    if (!ctxId) {
+      console.warn('[Scene] Screenshot failed: no contextId')
+      return
+    }
+    GLView.takeSnapshotAsync(ctxId, { format: 'png', compress: 1.0 }).then(
+      (snapshot) => {
+        const uri = (snapshot.localUri || snapshot.uri) as string
+        console.log(`[Scene] Screenshot: ${snapshot.width}x${snapshot.height} → ${uri}`)
+        onCapture(uri)
+      },
+      (err) => console.warn('[Scene] Screenshot error:', err),
+    )
+  })
+
+  return null
+}
+
 // ─── History (Undo/Redo) ────────────────────────────────────────────
 
 interface SceneSnapshot {
@@ -553,6 +588,8 @@ export default function NativeSceneScreen() {
   const scene: SceneV1 = mockScene
   const [fps, setFPS] = useState(0)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [screenshotUri, setScreenshotUri] = useState<string | null>(null)
+  const screenshotTriggerRef = useRef(false)
 
   const initialSnapshot = useMemo<SceneSnapshot>(() => {
     const positions: Record<string, [number, number, number]> = {}
@@ -647,6 +684,10 @@ export default function NativeSceneScreen() {
     console.log(`[Scene] Save: ${JSON.stringify(output)}`)
   }, [scene, furnitureItems, positions, rotations])
 
+  const handleScreenshot = useCallback(() => {
+    screenshotTriggerRef.current = true
+  }, [])
+
   return (
     <View style={{ flex: 1 }}>
       <StatusBanner
@@ -675,6 +716,9 @@ export default function NativeSceneScreen() {
         <Pressable style={[styles.toolBtn, styles.addBtn]} onPress={handleAdd}>
           <Text style={styles.toolBtnText}>Add</Text>
         </Pressable>
+        <Pressable style={[styles.toolBtn, styles.screenshotBtn]} onPress={handleScreenshot}>
+          <Text style={styles.toolBtnText}>Screenshot</Text>
+        </Pressable>
         {selectedId && (
           <>
             <Pressable style={styles.toolBtn} onPress={handleRotate}>
@@ -699,8 +743,19 @@ export default function NativeSceneScreen() {
             rotations={rotations}
             setPositions={setPositions}
           />
+          <ScreenshotCapture triggerRef={screenshotTriggerRef} onCapture={setScreenshotUri} />
         </Canvas>
       </TestErrorBoundary>
+
+      {screenshotUri && (
+        <View style={styles.screenshotPreview}>
+          <Text style={styles.screenshotLabel}>Screenshot Preview</Text>
+          <Image source={{ uri: screenshotUri }} style={styles.screenshotImage} resizeMode="contain" />
+          <Pressable style={styles.screenshotDismiss} onPress={() => setScreenshotUri(null)}>
+            <Text style={styles.toolBtnText}>Dismiss</Text>
+          </Pressable>
+        </View>
+      )}
     </View>
   )
 }
@@ -739,10 +794,41 @@ const styles = StyleSheet.create({
   addBtn: {
     backgroundColor: '#6a1b9a',
   },
+  screenshotBtn: {
+    backgroundColor: '#0277bd',
+  },
   deleteBtn: {
     backgroundColor: '#c62828',
   },
   deleteBtnText: {
     color: '#fff',
+  },
+  screenshotPreview: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
+    backgroundColor: '#222',
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+  },
+  screenshotLabel: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  screenshotImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+  },
+  screenshotDismiss: {
+    marginTop: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#555',
   },
 })
