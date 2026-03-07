@@ -504,27 +504,77 @@ function SceneContent({
   )
 }
 
+// ─── History (Undo/Redo) ────────────────────────────────────────────
+
+interface SceneSnapshot {
+  furnitureItems: SceneV1['furniture']
+  positions: Record<string, [number, number, number]>
+  rotations: Record<string, number>
+}
+
+const MAX_HISTORY = 50
+
+function useHistory(initial: SceneSnapshot) {
+  const [past, setPast] = useState<SceneSnapshot[]>([])
+  const [present, setPresent] = useState<SceneSnapshot>(initial)
+  const [future, setFuture] = useState<SceneSnapshot[]>([])
+
+  const push = useCallback((snapshot: SceneSnapshot) => {
+    setPast((p) => {
+      const next = [...p, present]
+      return next.length > MAX_HISTORY ? next.slice(next.length - MAX_HISTORY) : next
+    })
+    setPresent(snapshot)
+    setFuture([])
+  }, [present])
+
+  const undo = useCallback(() => {
+    if (past.length === 0) return
+    const prev = past[past.length - 1]
+    setPast((p) => p.slice(0, -1))
+    setFuture((f) => [present, ...f])
+    setPresent(prev)
+  }, [past, present])
+
+  const redo = useCallback(() => {
+    if (future.length === 0) return
+    const next = future[0]
+    setFuture((f) => f.slice(1))
+    setPast((p) => [...p, present])
+    setPresent(next)
+  }, [future, present])
+
+  return { present, push, undo, redo, canUndo: past.length > 0, canRedo: future.length > 0 }
+}
+
 // ─── Screen ─────────────────────────────────────────────────────────
 
 export default function NativeSceneScreen() {
   const scene: SceneV1 = mockScene
   const [fps, setFPS] = useState(0)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [furnitureItems, setFurnitureItems] = useState<SceneV1['furniture']>(() => [...scene.furniture])
-  const [positions, setPositions] = useState<Record<string, [number, number, number]>>(() => {
-    const map: Record<string, [number, number, number]> = {}
+
+  const initialSnapshot = useMemo<SceneSnapshot>(() => {
+    const positions: Record<string, [number, number, number]> = {}
+    const rotations: Record<string, number> = {}
     for (const item of scene.furniture) {
-      map[item.id] = [...item.position] as [number, number, number]
+      positions[item.id] = [...item.position] as [number, number, number]
+      rotations[item.id] = item.rotation
     }
-    return map
-  })
-  const [rotations, setRotations] = useState<Record<string, number>>(() => {
-    const map: Record<string, number> = {}
-    for (const item of scene.furniture) {
-      map[item.id] = item.rotation
-    }
-    return map
-  })
+    return { furnitureItems: [...scene.furniture], positions, rotations }
+  }, [])
+
+  const history = useHistory(initialSnapshot)
+  const { furnitureItems, positions, rotations } = history.present
+
+  // setPositions for drag — pushes to history
+  const setPositions = useCallback(
+    (updater: (prev: Record<string, [number, number, number]>) => Record<string, [number, number, number]>) => {
+      const newPositions = updater(positions)
+      history.push({ furnitureItems, positions: newPositions, rotations })
+    },
+    [positions, furnitureItems, rotations, history.push],
+  )
 
   const selectedLabel = selectedId
     ? furnitureItems.find((f) => f.id === selectedId)?.label ?? selectedId
@@ -534,28 +584,31 @@ export default function NativeSceneScreen() {
     if (!selectedId) return
     const label = furnitureItems.find((f) => f.id === selectedId)?.label ?? selectedId
     console.log(`[Scene] Deleted: ${selectedId} (${label})`)
-    setFurnitureItems((prev) => prev.filter((f) => f.id !== selectedId))
-    setPositions((prev) => {
-      const next = { ...prev }
-      delete next[selectedId]
-      return next
-    })
-    setRotations((prev) => {
-      const next = { ...prev }
-      delete next[selectedId]
-      return next
-    })
+    const newItems = furnitureItems.filter((f) => f.id !== selectedId)
+    const newPositions = { ...positions }
+    delete newPositions[selectedId]
+    const newRotations = { ...rotations }
+    delete newRotations[selectedId]
+    history.push({ furnitureItems: newItems, positions: newPositions, rotations: newRotations })
     setSelectedId(null)
-  }, [selectedId, furnitureItems])
+  }, [selectedId, furnitureItems, positions, rotations, history.push])
 
   const handleRotate = useCallback(() => {
     if (!selectedId) return
-    setRotations((prev) => ({
-      ...prev,
-      [selectedId]: (prev[selectedId] ?? 0) + Math.PI / 2,
-    }))
+    const newRotations = { ...rotations, [selectedId]: (rotations[selectedId] ?? 0) + Math.PI / 2 }
+    history.push({ furnitureItems, positions, rotations: newRotations })
     console.log(`[Scene] Rotated: ${selectedId} by 90deg`)
-  }, [selectedId])
+  }, [selectedId, furnitureItems, positions, rotations, history.push])
+
+  const handleUndo = useCallback(() => {
+    history.undo()
+    console.log('[Scene] Undo')
+  }, [history.undo])
+
+  const handleRedo = useCallback(() => {
+    history.redo()
+    console.log('[Scene] Redo')
+  }, [history.redo])
 
   return (
     <View style={{ flex: 1 }}>
@@ -564,16 +617,32 @@ export default function NativeSceneScreen() {
         message={`${scene.name} (${scene.room.width}x${scene.room.depth}m) | ${furnitureItems.length} items | Selected: ${selectedLabel} | FPS: ${fps}`}
       />
 
-      {selectedId && (
-        <View style={styles.toolbar}>
-          <Pressable style={styles.toolBtn} onPress={handleRotate}>
-            <Text style={styles.toolBtnText}>Rotate 90</Text>
-          </Pressable>
-          <Pressable style={[styles.toolBtn, styles.deleteBtn]} onPress={handleDelete}>
-            <Text style={[styles.toolBtnText, styles.deleteBtnText]}>Delete</Text>
-          </Pressable>
-        </View>
-      )}
+      <View style={styles.toolbar}>
+        <Pressable
+          style={[styles.toolBtn, !history.canUndo && styles.toolBtnDisabled]}
+          onPress={handleUndo}
+          disabled={!history.canUndo}
+        >
+          <Text style={[styles.toolBtnText, !history.canUndo && styles.toolBtnTextDisabled]}>Undo</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.toolBtn, !history.canRedo && styles.toolBtnDisabled]}
+          onPress={handleRedo}
+          disabled={!history.canRedo}
+        >
+          <Text style={[styles.toolBtnText, !history.canRedo && styles.toolBtnTextDisabled]}>Redo</Text>
+        </Pressable>
+        {selectedId && (
+          <>
+            <Pressable style={styles.toolBtn} onPress={handleRotate}>
+              <Text style={styles.toolBtnText}>Rotate 90</Text>
+            </Pressable>
+            <Pressable style={[styles.toolBtn, styles.deleteBtn]} onPress={handleDelete}>
+              <Text style={[styles.toolBtnText, styles.deleteBtnText]}>Delete</Text>
+            </Pressable>
+          </>
+        )}
+      </View>
 
       <TestErrorBoundary name="Scene">
         <Canvas style={{ flex: 1 }}>
@@ -613,6 +682,13 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  toolBtnDisabled: {
+    backgroundColor: '#90a4ae',
+    opacity: 0.5,
+  },
+  toolBtnTextDisabled: {
+    color: '#ccc',
   },
   deleteBtn: {
     backgroundColor: '#c62828',
